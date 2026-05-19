@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  leads            Lead[]
+  allocationStates AllocationState[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([name])
+}
+
+model Provider {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  monthlyQuota Int              @default(10)
+  usedQuota    Int              @default(0)
+  assignments  LeadAssignment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([name])
+}
+
+model Lead {
+  id          String           @id @default(cuid())
+  name        String
+  phone       String
+  city        String
+  description String
+  serviceId   String
+  service     Service          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  assignments LeadAssignment[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([phone, serviceId], name: "lead_phone_service_unique")
+  @@index([serviceId])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+model LeadAssignment {
+  id         String   @id @default(cuid())
+  leadId     String
+  providerId String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now())
+
+  @@unique([leadId, providerId], name: "lead_provider_unique")
+  @@index([providerId])
+  @@index([leadId])
+}
+
+model AllocationState {
+  id          String   @id @default(cuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  poolKey     String
+  nextIndex   Int      @default(0)
+  poolVersion Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([serviceId, poolKey], name: "allocation_state_service_pool_unique")
+  @@index([serviceId])
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  eventId     String    @unique
+  type        String
+  status      String
+  processedAt DateTime?
+  payload     Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([status])
+}
